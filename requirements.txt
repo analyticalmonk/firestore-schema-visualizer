@@ -1,0 +1,4 @@
+firebase-admin
+openai
+pydot
+plantuml
