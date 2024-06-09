@@ -4,27 +4,28 @@ import json
 openai_api_key = ''
 client = OpenAI(api_key=openai_api_key)
 
-# def identify_relationships_llm(schema):
-#     relationships = {}
-#     schema_context = json.dumps(schema, indent=2)
-
-#     for collection, fields in schema.items():
-#         relationships[collection] = []
-#         prompt = (
-#             f"Given the following schema:\n\n{schema_context}\n\n"
-#             f"Identify any foreign key relationships within the fields of the collection '{collection}'. "
-#             f"Provide the field name and the related collection if possible."
-#         )
-#         response = client.chat.completions.create(
-#             model="gpt-4o",
-#             messages=[{"role": "user", "content": prompt}],
-#             max_tokens=512
-#         )
-#         related_collections = response.choices[0].message.content.strip()
-#         if related_collections:
-#             relationships[collection].append(related_collections)
-#     return relationships
-
+# # OpenAI tool calling sample
+# tools = [{
+#     "type": "function",
+#     "function": {
+#         "name": "create_schema_graph_llm",
+#         "description": "Creates a schema graph for Firestore collections and their relationships.",
+#         "parameters": {
+#             "type": "object",
+#             "properties": {
+#                 "schema": {
+#                     "type": "object",
+#                     "description": "A dictionary representing the Firestore schema, where the keys are collection names and the values are dictionaries representing the fields of each collection."
+#                 },
+#                 "relationships": {
+#                     "type": "object",
+#                     "description": "A dictionary representing the relationships between collections, where the keys are collection names and the values are lists of tuples representing the fields and related collections."
+#                 }
+#             },
+#             "required": ["schema", "relationships"]
+#         }
+#     }
+# }]
 
 # Function to identify relationships using LLM with full document schema context
 def identify_relationships_llm(schema):

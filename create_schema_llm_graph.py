@@ -1,3 +1,4 @@
+from datetime import datetime
 import pydot
 
 def create_schema_graph_llm(schema, relationships):
@@ -18,16 +19,16 @@ def create_schema_graph_llm(schema, relationships):
 
     Example:
         schema = {
-            'users': {
-                'name': 'string',
-                'email': 'string',
-                'posts': 'subcollection'
-            },
-            'posts': {
-                'title': 'string',
-                'content': 'string',
-                'author': 'reference(users)'
-            }
+            'users': [
+                'name'
+                'email',
+                'posts'
+            ],
+            'posts': [
+                'title',
+                'content',
+                'author'
+            ]
         }
         relationships = {
             'users': [('posts', 'author')],
@@ -50,7 +51,8 @@ def create_schema_graph_llm(schema, relationships):
         for field, related_collection in relationships.get(collection, []):
             edge = pydot.Edge(collection, related_collection.strip(), label=field.strip())
             graph.add_edge(edge)
-    
-    graph.write_png('firestore_schema_llm.png')
+
+    # Append filename with timestamp
+    graph.write_png(f'firestore_schema_llm_{datetime.now().strftime("%Y%m%d%H%M%S")}.png')
 
 create_schema_graph_llm(schema, relationships)
