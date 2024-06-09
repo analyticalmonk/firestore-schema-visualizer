@@ -1,6 +1,8 @@
 # Firestore Schema and Relationships Visualization
 
-This project provides tools to extract the schema of a Firestore database, identify relationships between collections, and generate visual representations of the schema and relationships using PlantUML and pydot.
+Extract the schema of a Firestore database, identify relationships between collections, and generate visual representations of the schema and relationships using PlantUML and pydot.
+
+*Note: this is an exploratory project and not meant for production usage.*
 
 ## Features
 
