@@ -49,13 +49,14 @@ def identify_relationships_llm(schema):
         if i == 0:
             i += 1
             continue
-        if i > 2:
-            break
+        # if i > 2:
+        #     break
         relationships[collection] = []
         prompt = (
             f"Given the following schema:\n\n{schema_context}\n\n"
             f"Identify any foreign key relationships within the fields of the collection '{collection}'. "
-            f"Provide the field name and the related collection if possible."
+            f"Provide the field name and the related collection if possible. Do not share any relationships that are not present in the provided schema." 
+            f"If no relationships are found, respond with None and nothing else."
         )
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -65,10 +66,10 @@ def identify_relationships_llm(schema):
         related_collections_text = response.choices[0].message.content.strip()
         print(related_collections_text)
         
-        if related_collections_text:
+        if related_collections_text and ("None" not in related_collections_text):
             # Use another OpenAI call to format the response appropriately
             format_prompt = (
-                "Given the identified relationships, convert this into a Python dict format where each entry is a tuple with the fields and related collection. Do not share anything other than the dict as an output"
+                "Given the identified relationships, convert this into a Python dict format where each entry is a tuple with the fields and related collection. Do not share anything other than the dict as an output."
                 '{{"field_name": "related_collection"}}. Example: {{"userId": "users", "orderId": "orders"}}'
                 "RELATIONSHIPS:"
                 f"{related_collections_text}"
