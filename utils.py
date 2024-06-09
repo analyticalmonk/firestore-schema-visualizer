@@ -50,14 +50,8 @@ def identify_relationships_llm(schema):
     relationships = {}
     schema_context = json.dumps(schema, indent=2)
 
-    i = 0
     for collection, fields in schema.items():
         print(f"Collection: {collection}\n\n")
-        if i == 0:
-            i += 1
-            continue
-        # if i > 2:
-        #     break
         relationships[collection] = []
         prompt = (
             f"Given the following schema:\n\n{schema_context}\n\n"
