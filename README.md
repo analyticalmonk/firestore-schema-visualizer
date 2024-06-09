@@ -31,25 +31,11 @@ This project provides tools to extract the schema of a Firestore database, ident
 
 ## Usage
 
-### 1. Extract Schema Information
-
-Use the `get_schema` function to extract the schema of your Firestore database:
-
-### 2. Identify Relationships
-
-Use the `identify_relationships_llm` function to identify foreign key relationships:
-
-### 3. Create Schema Graph
-
-Use the `create_schema_graph_llm` function to generate a visual representation of the schema:
-
-### 4. Generate PlantUML Text
-
-Use the `generate_plantuml_text` function to generate PlantUML text and optionally create a UML diagram:
+To run the complete workflow of extracting the schema, identifying relationships, generating a schema graph, and optionally creating a PlantUML diagram, use the `main.py` script:
 
 ## Functions
 
-### `get_schema`
+#### `get_schema`
 
 ```python
 def get_schema(db):
@@ -65,7 +51,7 @@ def get_schema(db):
     """
 ```
 
-### `identify_relationships_llm`
+#### `identify_relationships_llm`
 
 ```python
 def identify_relationships_llm(schema):
@@ -82,7 +68,7 @@ def identify_relationships_llm(schema):
     """
 ```
 
-### `generate_plantuml_text`
+#### `generate_plantuml_text`
 
 ```python
 def generate_plantuml_text(schema, relationships, generate_diagram=False, output_file=None):
@@ -102,7 +88,7 @@ def generate_plantuml_text(schema, relationships, generate_diagram=False, output
     """
 ```
 
-### `generate_uml_diagram`
+#### `generate_uml_diagram`
 
 ```python
 def generate_uml_diagram(plantuml_text, output_file):
@@ -118,7 +104,7 @@ def generate_uml_diagram(plantuml_text, output_file):
     """
 ```
 
-### `create_schema_graph_llm`
+#### `create_schema_graph_llm`
 
 ```python
 def create_schema_graph_llm(schema, relationships):
