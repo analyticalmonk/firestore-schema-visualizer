@@ -1,15 +1,17 @@
-# Firestore Schema Diagram Generator
+# Firestore Schema and Relationships Visualization
 
-## Description
-This project extracts schema information from Firestore, identifies relationships using OpenAI, and generates a schema diagram.
+This project provides tools to extract the schema of a Firestore database, identify relationships between collections, and generate visual representations of the schema and relationships using PlantUML and pydot.
 
-## Setup
+## Features
+
+- **Extract Firestore Schema**: Retrieve the schema of a Firestore database, including collection names and their fields.
+- **Identify Relationships**: Use OpenAI's GPT-4 to identify foreign key relationships between collections.
+- **Generate Schema Graph**: Create a visual representation of the Firestore schema and relationships using pydot.
+- **Generate PlantUML Text**: Generate PlantUML text for the schema and relationships, with an option to create a UML diagram.
+
+## Installation
 
 1. Clone the repository:
-    ```sh
-    git clone https://github.com/yourusername/your-repository.git
-    cd your-repository
-    ```
 
 2. Create a virtual environment and activate it:
     ```sh
@@ -29,20 +31,116 @@ This project extracts schema information from Firestore, identifies relationship
 
 ## Usage
 
-1. Extract schema information:
-    ```sh
-    python schema_extractor.py
-    ```
+### 1. Extract Schema Information
 
-2. Identify relationships:
-    ```sh
-    python relationship_identifier.py
-    ```
+Use the `get_schema` function to extract the schema of your Firestore database:
 
-3. Generate schema diagram:
-    ```sh
-    python schema_diagram.py
-    ```
+### 2. Identify Relationships
+
+Use the `identify_relationships_llm` function to identify foreign key relationships:
+
+### 3. Create Schema Graph
+
+Use the `create_schema_graph_llm` function to generate a visual representation of the schema:
+
+### 4. Generate PlantUML Text
+
+Use the `generate_plantuml_text` function to generate PlantUML text and optionally create a UML diagram:
+
+## Functions
+
+### `get_schema`
+
+```python
+def get_schema(db):
+    """
+    Retrieves the schema of a Firestore database.
+
+    Args:
+        db: The Firestore database object.
+
+    Returns:
+        dict: A dictionary representing the schema of the database. The keys are the collection names,
+              and the values are lists of field names present in each collection.
+    """
+```
+
+### `identify_relationships_llm`
+
+```python
+def identify_relationships_llm(schema):
+    """
+    Identifies foreign key relationships within the fields of each collection in the given schema.
+
+    Args:
+        schema (dict): A dictionary representing the schema of a Firestore database. Each key-value pair
+                       represents a collection name and its corresponding fields.
+
+    Returns:
+        dict: A dictionary where each key represents a collection name and the value is a list of tuples.
+              Each tuple contains the field name and the related collection name for a foreign key relationship.
+    """
+```
+
+### `generate_plantuml_text`
+
+```python
+def generate_plantuml_text(schema, relationships, generate_diagram=False, output_file=None):
+    """
+    Generates PlantUML text for Firestore collections and their relationships.
+    
+    Args:
+        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
+                       and the values are lists representing the fields of each collection.
+        relationships (dict): A dictionary representing the relationships between collections, where the keys are
+                              collection names and the values are lists of tuples representing the fields and related collections.
+        generate_diagram (bool): Whether to generate a UML diagram. Default is False.
+        output_file (str): The path to the output file for the UML diagram. Required if generate_diagram is True.
+    
+    Returns:
+        str: The PlantUML text representing the schema and relationships.
+    """
+```
+
+### `generate_uml_diagram`
+
+```python
+def generate_uml_diagram(plantuml_text, output_file):
+    """
+    Generates a UML diagram from PlantUML text.
+    
+    Args:
+        plantuml_text (str): The PlantUML text.
+        output_file (str): The path to the output file.
+    
+    Returns:
+        None
+    """
+```
+
+### `create_schema_graph_llm`
+
+```python
+def create_schema_graph_llm(schema, relationships):
+    """
+    Creates a schema graph for Firestore collections and their relationships.
+
+    Args:
+        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
+                       and the values are dictionaries representing the fields of each collection.
+        relationships (dict): A dictionary representing the relationships between collections, where the keys are
+                              collection names and the values are lists of tuples representing the fields and related collections.
+
+    Returns:
+        None
+
+    This function creates a directed graph using the pydot library to visualize the schema and relationships
+    between Firestore collections. Each collection is represented as a node, and each relationship is represented
+    as an edge with a label indicating the field name.
+
+    The resulting graph is saved as a PNG image named 'firestore_schema_llm_<timestamp>.png' in the current directory.
+    """
+```
 
 ## License
 [MIT License](LICENSE)
