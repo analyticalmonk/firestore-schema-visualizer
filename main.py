@@ -3,39 +3,37 @@ from utils import get_schema, identify_relationships_llm, create_schema_graph_ll
 from datetime import datetime
 
 def main():
-    """
-    Entry point of the Firestore Schema Generator.
-
-    This function initializes Firestore, extracts the schema, identifies relationships,
-    creates a schema graph, generates PlantUML text and diagram, and prints the results.
-
-    Returns:
-        None
-    """
     # Initialize Firestore
     cred = credentials.ApplicationDefault()
     initialize_app(cred)
     db = firestore.client()
 
-    # Extract schema
+    # Extract schema with types and subcollections
     print("Extracting schema...\n")
-    schema = get_schema(db)
+    schema, reference_fields = get_schema(db)
     print("Schema extracted:")
-    print(schema)
+    for collection, fields in schema.items():
+        print(f"  {collection}:")
+        for field, ftype in fields.items():
+            print(f"    {field}: {ftype}")
+    print()
 
-    # Identify relationships
+    # Identify relationships (pre-seeded with known references)
     print("Identifying relationships...\n")
-    relationships = identify_relationships_llm(schema)
+    relationships = identify_relationships_llm(schema, known_references=reference_fields)
     print("Relationships identified:")
-    print(relationships)
+    for collection, rels in relationships.items():
+        if rels:
+            print(f"  {collection}: {rels}")
+    print()
 
-    # # Create schema graph
-    # print("Creating schema graph...\n")
-    # create_schema_graph_llm(schema, relationships)
-    # print("Schema graph created.")
+    # Create pydot schema graph
+    print("Creating schema graph...\n")
+    graph_file = create_schema_graph_llm(schema, relationships)
+    print(f"Schema graph saved to {graph_file}\n")
 
     # Generate PlantUML text and diagram
-    print("Generating PlantUML text and diagram...\n")
+    print("Generating PlantUML diagram...\n")
     output_file = f'firestore_schema_llm_{datetime.now().strftime("%Y%m%d%H%M%S")}.png'
     plantuml_text = generate_plantuml_text(schema, relationships, generate_diagram=True, output_file=output_file)
     print("PlantUML text generated:")
