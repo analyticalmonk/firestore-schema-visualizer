@@ -106,63 +106,66 @@ def get_schema(db, max_depth=3, sample_size=50):
 
     return schema, reference_fields
 
-# Function to identify relationships using LLM with full document schema context
-def identify_relationships_llm(schema):
+def identify_relationships_llm(schema, known_references=None):
     """
-    Identifies foreign key relationships within the fields of each collection in the given schema.
+    Identify foreign key relationships using LLM, supplemented by known reference fields.
 
     Args:
-        schema (dict): A dictionary representing the schema of a Firestore database. Each key-value pair
-                       represents a collection name and its corresponding fields.
+        schema: dict[str, dict[str, str]] - collection path -> {field: type}
+        known_references: dict[str, list[tuple[str, str]]] - pre-identified reference relationships
 
     Returns:
-        dict: A dictionary where each key represents a collection name and the value is a list of tuples.
-              Each tuple contains the field name and the related collection name for a foreign key relationship.
+        dict[str, list[tuple[str, str]]] - collection -> [(field, related_collection)]
     """
+    if known_references is None:
+        known_references = {}
+
     relationships = {}
     schema_context = json.dumps(schema, indent=2)
+    collection_names = list(schema.keys())
 
     for collection, fields in schema.items():
-        print(f"Collection: {collection}\n\n")
+        print(f"Collection: {collection}\n")
         relationships[collection] = []
+
+        # Pre-populate known reference relationships
+        if collection in known_references:
+            relationships[collection].extend(known_references[collection])
+            print(f"  Known references: {known_references[collection]}")
+
+        # Filter out fields already identified as references
+        known_field_names = {f for f, _ in relationships[collection]}
+        remaining_fields = {f: t for f, t in fields.items() if f not in known_field_names}
+
+        if not remaining_fields:
+            print("  All fields resolved via references, skipping LLM.\n")
+            continue
+
         prompt = (
-            f"Given the following schema:\n\n{schema_context}\n\n"
-            f"Identify any foreign key relationships within the fields of the collection '{collection}'. "
-            f"Provide the field name and the related collection if possible. Do not share any relationships that are not present in the provided schema." 
-            f"If no relationships are found, respond with None and nothing else."
+            f"Given the following Firestore schema (collection -> field: type):\n\n{schema_context}\n\n"
+            f"The available collections are: {collection_names}\n\n"
+            f"For the collection '{collection}', examine these fields: {json.dumps(remaining_fields)}\n\n"
+            f"Identify any fields that likely represent foreign key relationships to other collections. "
+            f"Only identify relationships to collections that exist in the schema above. "
+            f"Respond with a JSON object mapping field names to their related collection, "
+            f'e.g. {{"user_id": "users"}}. If no relationships found, respond with {{}}.'
         )
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=512
+            max_tokens=512,
+            response_format={"type": "json_object"}
         )
-        related_collections_text = response.choices[0].message.content.strip()
-        print(related_collections_text)
-        
-        if related_collections_text and ("None" not in related_collections_text):
-            # Use another OpenAI call to format the response appropriately
-            format_prompt = (
-                "Given the identified relationships, convert this into a Python dict format where each entry is a tuple with the fields and related collection. Do not share anything other than the dict as an output."
-                '{{"field_name": "related_collection"}}. Example: {{"userId": "users", "orderId": "orders"}}'
-                "RELATIONSHIPS:"
-                f"{related_collections_text}"
-                "DICT OUTPUT:"
-            )
-            format_response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": "user", "content": format_prompt}],
-                max_tokens=150
-            )
-            formatted_output = format_response.choices[0].message.content.strip()[10:-4]
-            print(formatted_output)
-            formatted_relationships = json.loads(formatted_output)
+        result_text = response.choices[0].message.content.strip()
+        print(f"  LLM result: {result_text}")
 
-            formatted_relationships = [(k, v) for k, v in formatted_relationships.items()]
-            relationships[collection].extend(formatted_relationships)
+        llm_relationships = json.loads(result_text)
+        for field, target in llm_relationships.items():
+            if target in schema:
+                relationships[collection].append((field, target))
 
-        i += 1
-        print("\n\n")
-    
+        print()
+
     return relationships
 
 
