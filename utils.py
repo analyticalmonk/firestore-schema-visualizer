@@ -45,29 +45,66 @@ def merge_field_types(type_counts):
     return "null"
 
 
-def get_schema(db):
+def get_schema(db, max_depth=3, sample_size=50):
     """
-    Retrieves the schema of a Firestore database.
+    Retrieve the schema of a Firestore database with inferred field types
+    and recursive subcollection discovery.
 
     Args:
-        db: The Firestore database object.
+        db: The Firestore database client.
+        max_depth: Maximum subcollection nesting depth to explore (default 3).
+        sample_size: Number of documents to sample per collection (default 50).
 
     Returns:
-        A dictionary representing the schema of the database. The keys are the collection names,
-        and the values are lists of field names present in each collection.
+        A tuple of (schema, reference_fields):
+        - schema: dict[str, dict[str, str]] - collection path -> {field_name: type_label}
+        - reference_fields: dict[str, list[tuple[str, str]]] - collection path -> [(field, target_collection)]
     """
     schema = {}
-    collections = db.collections()
-    for collection in collections:
-        collection_name = collection.id
-        schema[collection_name] = []
-        docs = collection.limit(50).stream()
+    reference_fields = {}
+
+    def _process_collection(collection_ref, path_prefix, depth):
+        col_path = f"{path_prefix}.{collection_ref.id}" if path_prefix else collection_ref.id
+        field_type_counts = {}  # {field_name: {type_label: count}}
+        seen_subcollections = set()
+
+        docs = collection_ref.limit(sample_size).stream()
         for doc in docs:
             doc_data = doc.to_dict()
-            for field in doc_data.keys():
-                if field not in schema[collection_name]:
-                    schema[collection_name].append(field)
-    return schema
+            if not doc_data:
+                continue
+            for field, value in doc_data.items():
+                if field not in field_type_counts:
+                    field_type_counts[field] = {}
+                type_label = infer_field_type(value)
+                field_type_counts[field][type_label] = field_type_counts[field].get(type_label, 0) + 1
+
+                # Track reference targets
+                if type_label == "reference" and hasattr(value, "parent"):
+                    target = value.parent.id
+                    if col_path not in reference_fields:
+                        reference_fields[col_path] = []
+                    pair = (field, target)
+                    if pair not in reference_fields[col_path]:
+                        reference_fields[col_path].append(pair)
+
+            # Discover subcollections
+            if depth < max_depth:
+                for sub_col in doc.reference.collections():
+                    if sub_col.id not in seen_subcollections:
+                        seen_subcollections.add(sub_col.id)
+                        _process_collection(sub_col, col_path, depth + 1)
+
+        # Merge type counts into final types
+        schema[col_path] = {
+            field: merge_field_types(counts)
+            for field, counts in field_type_counts.items()
+        }
+
+    for collection in db.collections():
+        _process_collection(collection, "", 0)
+
+    return schema, reference_fields
 
 # Function to identify relationships using LLM with full document schema context
 def identify_relationships_llm(schema):
