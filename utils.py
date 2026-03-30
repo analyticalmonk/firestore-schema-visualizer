@@ -189,7 +189,7 @@ def create_schema_graph_llm(schema, relationships):
     for collection, fields in schema.items():
         field_lines = [f"{name} : {ftype}" for name, ftype in fields.items()]
         label = "{" + collection + "|" + "\\l".join(field_lines) + "\\l}"
-        node = pydot.Node(collection, label=label)
+        node = pydot.Node(f'"{collection}"', label=label)
         graph.add_node(node)
 
     # Add subcollection parent-child edges
@@ -197,13 +197,13 @@ def create_schema_graph_llm(schema, relationships):
         if "." in collection:
             parent = collection.rsplit(".", 1)[0]
             if parent in schema:
-                edge = pydot.Edge(parent, collection, label="subcollection", style="dashed")
+                edge = pydot.Edge(f'"{parent}"', f'"{collection}"', label="subcollection", style="dashed")
                 graph.add_edge(edge)
 
     # Add FK relationship edges
     for collection, rels in relationships.items():
         for field, related_collection in rels:
-            edge = pydot.Edge(collection, related_collection.strip(), label=field.strip())
+            edge = pydot.Edge(f'"{collection}"', f'"{related_collection.strip()}"', label=field.strip())
             graph.add_edge(edge)
 
     output_file = f'firestore_schema_llm_{datetime.now().strftime("%Y%m%d%H%M%S")}.png'
@@ -227,7 +227,7 @@ def generate_plantuml_text(schema, relationships, generate_diagram=False, output
 
     # Class definitions with typed fields
     for collection, fields in schema.items():
-        uml_lines.append(f"class {collection} {{")
+        uml_lines.append(f'class "{collection}" {{')
         for field, ftype in fields.items():
             uml_lines.append(f"  {field} : {ftype}")
         uml_lines.append("}")
@@ -237,12 +237,12 @@ def generate_plantuml_text(schema, relationships, generate_diagram=False, output
         if "." in collection:
             parent = collection.rsplit(".", 1)[0]
             if parent in schema:
-                uml_lines.append(f'{parent} *-- {collection} : subcollection')
+                uml_lines.append(f'"{parent}" *-- "{collection}" : subcollection')
 
     # FK relationship arrows
     for collection, rels in relationships.items():
         for field, related_collection in rels:
-            uml_lines.append(f"{collection} --> {related_collection} : {field}")
+            uml_lines.append(f'"{collection}" --> "{related_collection}" : {field}')
 
     uml_lines.append("@enduml")
     plantuml_text = "\n".join(uml_lines)
