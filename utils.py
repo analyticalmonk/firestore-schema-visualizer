@@ -171,57 +171,44 @@ def identify_relationships_llm(schema, known_references=None):
 
 def create_schema_graph_llm(schema, relationships):
     """
-    Creates a schema graph for Firestore collections and their relationships.
+    Create a pydot directed graph visualizing the Firestore schema.
+
+    Nodes show collection name with typed fields. Edges show FK relationships
+    and subcollection parent-child links.
 
     Args:
-        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
-            and the values are dictionaries representing the fields of each collection.
-        relationships (dict): A dictionary representing the relationships between collections, where the keys are
-            collection names and the values are lists of tuples representing the fields and related collections.
+        schema: dict[str, dict[str, str]] - collection path -> {field: type}
+        relationships: dict[str, list[tuple[str, str]]] - collection -> [(field, related_collection)]
 
     Returns:
-        None
-
-    Raises:
-        None
-
-    Example:
-        schema = {
-            'users': [
-                'name'
-                'email',
-                'posts'
-            ],
-            'posts': [
-                'title',
-                'content',
-                'author'
-            ]
-        }
-        relationships = {
-            'users': [('posts', 'author')],
-            'posts': [('author', 'users')]
-        }
-        create_schema_graph_llm(schema, relationships)
-
-    This function creates a directed graph using the pydot library to visualize the schema and relationships
-    between Firestore collections. Each collection is represented as a node, and each relationship is represented
-    as an edge with a label indicating the field name.
-
-    The resulting graph is saved as a PNG image named 'firestore_schema_llm.png' in the current directory.
+        str: The output filename of the generated PNG.
     """
-    graph = pydot.Dot(graph_type='digraph')
+    graph = pydot.Dot(graph_type='digraph', rankdir='LR')
+    graph.set_node_defaults(shape='record')
 
     for collection, fields in schema.items():
-        node = pydot.Node(collection)
+        field_lines = [f"{name} : {ftype}" for name, ftype in fields.items()]
+        label = "{" + collection + "|" + "\\l".join(field_lines) + "\\l}"
+        node = pydot.Node(collection, label=label)
         graph.add_node(node)
-        
-        for field, related_collection in relationships.get(collection, []):
+
+    # Add subcollection parent-child edges
+    for collection in schema:
+        if "." in collection:
+            parent = collection.rsplit(".", 1)[0]
+            if parent in schema:
+                edge = pydot.Edge(parent, collection, label="subcollection", style="dashed")
+                graph.add_edge(edge)
+
+    # Add FK relationship edges
+    for collection, rels in relationships.items():
+        for field, related_collection in rels:
             edge = pydot.Edge(collection, related_collection.strip(), label=field.strip())
             graph.add_edge(edge)
 
-    # Append filename with timestamp
-    graph.write_png(f'firestore_schema_llm_{datetime.now().strftime("%Y%m%d%H%M%S")}.png')
+    output_file = f'firestore_schema_llm_{datetime.now().strftime("%Y%m%d%H%M%S")}.png'
+    graph.write_png(output_file)
+    return output_file
 
 def generate_plantuml_text(schema, relationships, generate_diagram=False, output_file=None):
     """
