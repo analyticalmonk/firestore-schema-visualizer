@@ -212,32 +212,34 @@ def create_schema_graph_llm(schema, relationships):
 
 def generate_plantuml_text(schema, relationships, generate_diagram=False, output_file=None):
     """
-    Generates PlantUML text for Firestore collections and their relationships.
-    
+    Generate PlantUML text for Firestore collections with typed fields.
+
     Args:
-        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
-                       and the values are lists representing the fields of each collection.
-        relationships (dict): A dictionary representing the relationships between collections, where the keys are
-                              collection names and the values are lists of tuples representing the fields and related collections.
-        generate_diagram (bool): Whether to generate a UML diagram. Default is False.
-        output_file (str): The path to the output file for the UML diagram. Required if generate_diagram is True.
-    
+        schema: dict[str, dict[str, str]] - collection path -> {field: type}
+        relationships: dict[str, list[tuple[str, str]]] - collection -> [(field, related_collection)]
+        generate_diagram: Whether to render a PNG diagram. Default False.
+        output_file: Output PNG path. Required if generate_diagram is True.
+
     Returns:
-        str: The PlantUML text representing the schema and relationships.
+        str: The PlantUML text.
     """
     uml_lines = ["@startuml"]
 
-    # Create class definitions for each collection
+    # Class definitions with typed fields
     for collection, fields in schema.items():
         uml_lines.append(f"class {collection} {{")
-        if isinstance(fields, list):
-            for field in fields:
-                uml_lines.append(f"  {field}")
-        else:
-            uml_lines.append("  // Invalid schema format")
+        for field, ftype in fields.items():
+            uml_lines.append(f"  {field} : {ftype}")
         uml_lines.append("}")
 
-    # Create relationships
+    # Subcollection composition arrows
+    for collection in schema:
+        if "." in collection:
+            parent = collection.rsplit(".", 1)[0]
+            if parent in schema:
+                uml_lines.append(f'{parent} *-- {collection} : subcollection')
+
+    # FK relationship arrows
     for collection, rels in relationships.items():
         for field, related_collection in rels:
             uml_lines.append(f"{collection} --> {related_collection} : {field}")
