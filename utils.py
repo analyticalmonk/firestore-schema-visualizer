@@ -10,6 +10,41 @@ from config import OPENAI_API_KEY
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+
+def infer_field_type(value):
+    """Map a Python/Firestore value to a type label string."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, datetime):
+        return "timestamp"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "map"
+    class_name = value.__class__.__name__
+    if class_name == "DocumentReference":
+        return "reference"
+    if class_name == "GeoPoint":
+        return "geopoint"
+    return "unknown"
+
+
+def merge_field_types(type_counts):
+    """Given a dict of {type_label: count}, return the most common non-null type."""
+    if not type_counts:
+        return "unknown"
+    non_null = {t: c for t, c in type_counts.items() if t != "null"}
+    if non_null:
+        return max(non_null, key=non_null.get)
+    return "null"
+
+
 def get_schema(db):
     """
     Retrieves the schema of a Firestore database.
