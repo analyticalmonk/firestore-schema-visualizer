@@ -1,4 +1,5 @@
 import sys
+import json
 import argparse
 from firebase_admin import credentials, firestore, initialize_app
 from utils import get_schema, identify_relationships_llm, create_schema_graph_llm, generate_plantuml_text
@@ -16,6 +17,8 @@ def main():
                         help="Skip LLM relationship detection (only use reference-type fields)")
     parser.add_argument("--format", choices=["all", "plantuml", "pydot"], default="all",
                         help="Output format (default: all)")
+    parser.add_argument("--no-export-json", action="store_true",
+                        help="Skip exporting schema to a JSON file")
     args = parser.parse_args()
 
     # Validate OpenAI API key upfront if LLM will be used
@@ -37,6 +40,18 @@ def main():
         for field, ftype in fields.items():
             print(f"    {field}: {ftype}")
     print()
+
+    # Export schema to JSON immediately so it's saved even if later steps fail
+    if not args.no_export_json:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        json_file = f"firestore_schema_{timestamp}.json"
+        export_data = {
+            "schema": schema,
+            "reference_fields": {col: [(f, t) for f, t in refs] for col, refs in reference_fields.items()}
+        }
+        with open(json_file, "w") as f:
+            json.dump(export_data, f, indent=2)
+        print(f"Schema exported to {json_file}\n")
 
     # Identify relationships
     if args.skip_llm:
