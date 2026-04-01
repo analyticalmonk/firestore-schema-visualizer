@@ -25,7 +25,7 @@ graph LR
 
 - **Extract Firestore Schema**: Retrieve the schema of a Firestore database, including collection names, field names, and inferred field types (string, number, boolean, timestamp, reference, etc.).
 - **Subcollection Discovery**: Recursively discover and include subcollections (e.g., `users.posts.comments`).
-- **Identify Relationships**: Use OpenAI's GPT-4o to identify foreign key relationships between collections. DocumentReference fields are detected automatically without the LLM.
+- **Identify Relationships**: Detect foreign key relationships between collections using two methods (see [How relationship detection works](#how-relationship-detection-works)).
 - **Generate Schema Graph**: Create a visual representation of the Firestore schema and relationships using pydot.
 - **Generate PlantUML Diagram**: Generate PlantUML class diagrams with typed fields and relationship arrows.
 
@@ -44,7 +44,7 @@ graph LR
     pip install -r requirements.txt
     ```
 
-4. Set up environment variables:
+4. Set up environment variables (only needed if using LLM relationship detection):
     ```sh
     export OPENAI_API_KEY='your-api-key'
     ```
@@ -81,6 +81,20 @@ For a fast overview without LLM costs or subcollection crawling:
 ```sh
 python main.py --sample-size 10 --max-depth 0 --skip-llm
 ```
+
+## How relationship detection works
+
+Relationships between collections are detected in two layers:
+
+1. **Reference fields (automatic, no LLM)** - During schema extraction, Firestore `DocumentReference` fields are detected directly. These are actual pointers to other documents, so the target collection is known with certainty. This happens for free as part of schema extraction.
+
+2. **Name-based inference (LLM)** - Many relationships are stored as plain string or number fields (e.g., `user_id`, `author_email`) rather than native references. An LLM examines the full schema and field names to infer which fields likely refer to other collections. This requires an OpenAI API key and makes one API call per collection.
+
+### What `--skip-llm` does
+
+With `--skip-llm`, only layer 1 runs. You get relationships for `DocumentReference` fields but miss name-based ones. For example, if a `posts` collection has a `user_id` string field pointing to `users`, that relationship won't be detected.
+
+Use `--skip-llm` when you want a quick overview, want to avoid API costs, or don't have an OpenAI key. The schema extraction itself (field names, types, subcollections) is unaffected.
 
 ## Tests
 
