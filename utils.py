@@ -281,11 +281,14 @@ def generate_uml_diagram(plantuml_text, output_file):
         temp_file.write(plantuml_text.encode('utf-8'))
         temp_file_path = temp_file.name
 
-    # Generate the UML diagram from the temporary file
-    plantuml.processes_file(temp_file_path)
-
-    # Move the generated diagram to the specified output file
-    generated_file = temp_file_path.replace(".puml", ".png")
-    os.rename(generated_file, output_file)
+    try:
+        plantuml.processes_file(temp_file_path)
+        generated_file = temp_file_path.replace(".puml", ".png")
+        os.rename(generated_file, output_file)
+    except Exception as e:
+        print(f"Warning: PlantUML server rendering failed ({e}). "
+              f"The PlantUML text has been saved to {temp_file_path} - "
+              f"you can paste it into https://www.plantuml.com/plantuml/uml/ to render manually.")
+        return
     os.remove(temp_file_path)
     print(f"UML diagram saved as {output_file}")
