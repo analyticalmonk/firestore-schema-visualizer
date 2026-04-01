@@ -1,6 +1,8 @@
+import sys
 import argparse
 from firebase_admin import credentials, firestore, initialize_app
 from utils import get_schema, identify_relationships_llm, create_schema_graph_llm, generate_plantuml_text
+from config import OPENAI_API_KEY
 from datetime import datetime
 
 
@@ -15,6 +17,11 @@ def main():
     parser.add_argument("--format", choices=["all", "plantuml", "pydot"], default="all",
                         help="Output format (default: all)")
     args = parser.parse_args()
+
+    # Validate OpenAI API key upfront if LLM will be used
+    if not args.skip_llm and (not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key"):
+        print("Error: OPENAI_API_KEY is not set. Either set it via environment variable or use --skip-llm.")
+        sys.exit(1)
 
     # Initialize Firestore
     cred = credentials.ApplicationDefault()
