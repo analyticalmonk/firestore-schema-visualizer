@@ -21,10 +21,11 @@ def main():
                         help="Skip exporting schema to a JSON file")
     args = parser.parse_args()
 
-    # Validate OpenAI API key upfront if LLM will be used
+    # Check OpenAI API key upfront if LLM will be used
     if not args.skip_llm and (not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key"):
-        print("Error: OPENAI_API_KEY is not set. Either set it via environment variable or use --skip-llm.")
-        sys.exit(1)
+        print("Warning: OPENAI_API_KEY is not set. LLM relationship detection will be skipped.")
+        print("Set the environment variable or pass --skip-llm to silence this warning.\n")
+        args.skip_llm = True
 
     # Initialize Firestore
     cred = credentials.ApplicationDefault()
@@ -62,7 +63,15 @@ def main():
                 relationships[col] = []
     else:
         print("Identifying relationships...\n")
-        relationships = identify_relationships_llm(schema, known_references=reference_fields)
+        try:
+            relationships = identify_relationships_llm(schema, known_references=reference_fields)
+        except Exception as e:
+            print(f"Warning: LLM relationship detection failed ({e}).")
+            print("Falling back to reference-type fields only.\n")
+            relationships = {col: refs for col, refs in reference_fields.items()}
+            for col in schema:
+                if col not in relationships:
+                    relationships[col] = []
     print("Relationships identified:")
     for collection, rels in relationships.items():
         if rels:

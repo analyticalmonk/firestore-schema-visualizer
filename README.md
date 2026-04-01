@@ -73,6 +73,9 @@ python main.py --max-depth 5 --sample-size 20
 | `--max-depth N` | 3 | Maximum subcollection nesting depth (0 to skip subcollections) |
 | `--skip-llm` | off | Skip LLM relationship detection (only use reference-type fields) |
 | `--format` | all | Output format: `all`, `plantuml`, or `pydot` |
+| `--no-export-json` | off | Skip exporting schema to a JSON file |
+
+By default, the schema is exported to a timestamped JSON file (e.g., `firestore_schema_20260401120000.json`) immediately after extraction, before relationship detection or diagram rendering. This ensures you have the schema saved even if later steps fail.
 
 ### Quick mode
 
