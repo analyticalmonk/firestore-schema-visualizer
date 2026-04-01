@@ -65,10 +65,13 @@ def get_schema(db, max_depth=3, sample_size=50):
 
     def _process_collection(collection_ref, path_prefix, depth):
         col_path = f"{path_prefix}.{collection_ref.id}" if path_prefix else collection_ref.id
+        indent = "  " * depth
+        print(f"{indent}Scanning collection: {col_path}")
         field_type_counts = {}  # {field_name: {type_label: count}}
-        seen_subcollections = set()
+        seen_subcollections = {}  # {name: collection_ref}
 
-        docs = collection_ref.limit(sample_size).stream()
+        docs = list(collection_ref.limit(sample_size).stream())
+        print(f"{indent}  Sampled {len(docs)} docs")
         for doc in docs:
             doc_data = doc.to_dict()
             if not doc_data:
@@ -88,12 +91,18 @@ def get_schema(db, max_depth=3, sample_size=50):
                     if pair not in reference_fields[col_path]:
                         reference_fields[col_path].append(pair)
 
-            # Discover subcollections
-            if depth < max_depth:
-                for sub_col in doc.reference.collections():
-                    if sub_col.id not in seen_subcollections:
-                        seen_subcollections.add(sub_col.id)
-                        _process_collection(sub_col, col_path, depth + 1)
+            # Discover subcollections (only check first doc to reduce API calls)
+            if depth < max_depth and not seen_subcollections:
+                sub_col_refs = list(doc.reference.collections())
+                for sub_col in sub_col_refs:
+                    seen_subcollections[sub_col.id] = sub_col
+                if seen_subcollections:
+                    print(f"{indent}  Found subcollections: {set(seen_subcollections.keys())}")
+
+        # Recurse into discovered subcollections after processing all docs
+        if depth < max_depth:
+            for sub_col_name, sub_col_ref in seen_subcollections.items():
+                _process_collection(sub_col_ref, col_path, depth + 1)
 
         # Merge type counts into final types
         schema[col_path] = {
