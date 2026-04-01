@@ -63,6 +63,9 @@ python main.py --max-depth 0 --format plantuml
 
 # Deeper subcollection discovery with smaller sample
 python main.py --max-depth 5 --sample-size 20
+
+# Generate diagrams for specific collections only
+python main.py --collections users,posts,comments
 ```
 
 ### CLI Options
@@ -74,6 +77,7 @@ python main.py --max-depth 5 --sample-size 20
 | `--skip-llm` | off | Skip LLM relationship detection (only use reference-type fields) |
 | `--format` | all | Output format: `all`, `plantuml`, or `pydot` |
 | `--no-export-json` | off | Skip exporting schema to a JSON file |
+| `--collections` | all | Comma-separated list of collections to scan (subcollections included automatically) |
 
 By default, the schema is exported to a timestamped JSON file (e.g., `firestore_schema_20260401120000.json`) immediately after extraction, before relationship detection or diagram rendering. This ensures you have the schema saved even if later steps fail.
 

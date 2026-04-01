@@ -19,6 +19,8 @@ def main():
                         help="Output format (default: all)")
     parser.add_argument("--no-export-json", action="store_true",
                         help="Skip exporting schema to a JSON file")
+    parser.add_argument("--collections", type=str,
+                        help="Comma-separated list of collections to include in diagrams (e.g., users,posts,comments)")
     args = parser.parse_args()
 
     # Check OpenAI API key upfront if LLM will be used
@@ -34,7 +36,9 @@ def main():
 
     # Extract schema with types and subcollections
     print("Extracting schema...\n")
-    schema, reference_fields = get_schema(db, max_depth=args.max_depth, sample_size=args.sample_size)
+    selected_collections = set(args.collections.split(",")) if args.collections else None
+    schema, reference_fields = get_schema(db, max_depth=args.max_depth, sample_size=args.sample_size,
+                                          collections=selected_collections)
     print("\nSchema extracted:")
     for collection, fields in schema.items():
         print(f"  {collection}:")

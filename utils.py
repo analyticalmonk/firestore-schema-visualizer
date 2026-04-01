@@ -45,7 +45,7 @@ def merge_field_types(type_counts):
     return "null"
 
 
-def get_schema(db, max_depth=3, sample_size=50):
+def get_schema(db, max_depth=3, sample_size=50, collections=None):
     """
     Retrieve the schema of a Firestore database with inferred field types
     and recursive subcollection discovery.
@@ -54,6 +54,7 @@ def get_schema(db, max_depth=3, sample_size=50):
         db: The Firestore database client.
         max_depth: Maximum subcollection nesting depth to explore (default 3).
         sample_size: Number of documents to sample per collection (default 50).
+        collections: Optional set of top-level collection names to scan. If None, scans all.
 
     Returns:
         A tuple of (schema, reference_fields):
@@ -111,6 +112,8 @@ def get_schema(db, max_depth=3, sample_size=50):
         }
 
     for collection in db.collections():
+        if collections and collection.id not in collections:
+            continue
         _process_collection(collection, "", 0)
 
     return schema, reference_fields
@@ -154,7 +157,12 @@ def identify_relationships_llm(schema, known_references=None):
             f"Given the following Firestore schema (collection -> field: type):\n\n{schema_context}\n\n"
             f"The available collections are: {collection_names}\n\n"
             f"For the collection '{collection}', examine these fields: {json.dumps(remaining_fields)}\n\n"
-            f"Identify any fields that likely represent foreign key relationships to other collections. "
+            f"Identify fields that are foreign keys - fields that store an ID or key used to look up "
+            f"a document in another collection. Typical patterns: fields ending in _id, _ref, Id, Ref, "
+            f"or fields named exactly like a collection in singular form (e.g., 'user' -> 'users').\n\n"
+            f"Do NOT flag fields that merely contain data that also exists in another collection. "
+            f"For example, an 'email' field stores a value, not a foreign key, even if another "
+            f"collection also has email fields.\n\n"
             f"Only identify relationships to collections that exist in the schema above. "
             f"Respond with a JSON object mapping field names to their related collection, "
             f'e.g. {{"user_id": "users"}}. If no relationships found, respond with {{}}.'
