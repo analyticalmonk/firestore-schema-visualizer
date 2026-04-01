@@ -4,6 +4,23 @@ Extract the schema of a Firestore database, identify relationships between colle
 
 *Note: this is an exploratory project and not meant for production usage.*
 
+```mermaid
+graph LR
+    A[(Firestore DB)] --> B[Schema Extraction]
+    B --> |"field types\nsubcollections"| C{Reference fields?}
+    C --> |yes| D[Known Relationships]
+    C --> |no| E[LLM Detection]
+    D --> F[Merge Relationships]
+    E --> F
+    F --> G[PlantUML Diagram]
+    F --> H[pydot Graph]
+
+    style A fill:#f9a825,stroke:#f57f17,color:#000
+    style E fill:#90caf9,stroke:#1565c0,color:#000
+    style G fill:#a5d6a7,stroke:#2e7d32,color:#000
+    style H fill:#a5d6a7,stroke:#2e7d32,color:#000
+```
+
 ## Features
 
 - **Extract Firestore Schema**: Retrieve the schema of a Firestore database, including collection names, field names, and inferred field types (string, number, boolean, timestamp, reference, etc.).
