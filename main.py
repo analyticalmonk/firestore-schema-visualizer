@@ -3,7 +3,7 @@ import json
 import argparse
 from firebase_admin import credentials, firestore, initialize_app
 from utils import get_schema, identify_relationships_llm, create_schema_graph_llm, generate_plantuml_text
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, ANTHROPIC_API_KEY
 from datetime import datetime
 
 
@@ -21,13 +21,19 @@ def main():
                         help="Skip exporting schema to a JSON file")
     parser.add_argument("--collections", type=str,
                         help="Comma-separated list of collections to include in diagrams (e.g., users,posts,comments)")
+    parser.add_argument("--llm-provider", choices=["openai", "anthropic"], default="openai",
+                        help="LLM provider for relationship detection (default: openai)")
     args = parser.parse_args()
 
-    # Check OpenAI API key upfront if LLM will be used
-    if not args.skip_llm and (not OPENAI_API_KEY or OPENAI_API_KEY == "your-api-key"):
-        print("Warning: OPENAI_API_KEY is not set. LLM relationship detection will be skipped.")
-        print("Set the environment variable or pass --skip-llm to silence this warning.\n")
-        args.skip_llm = True
+    # Check API key upfront for the selected provider
+    if not args.skip_llm:
+        api_keys = {"openai": OPENAI_API_KEY, "anthropic": ANTHROPIC_API_KEY}
+        key = api_keys[args.llm_provider]
+        if not key:
+            env_var = f"{args.llm_provider.upper()}_API_KEY"
+            print(f"Warning: {env_var} is not set. LLM relationship detection will be skipped.")
+            print("Set the environment variable or pass --skip-llm to silence this warning.\n")
+            args.skip_llm = True
 
     # Initialize Firestore
     cred = credentials.ApplicationDefault()
@@ -68,7 +74,8 @@ def main():
     else:
         print("Identifying relationships...\n")
         try:
-            relationships = identify_relationships_llm(schema, known_references=reference_fields)
+            relationships = identify_relationships_llm(schema, known_references=reference_fields,
+                                                       llm_provider=args.llm_provider)
         except Exception as e:
             print(f"Warning: LLM relationship detection failed ({e}).")
             print("Falling back to reference-type fields only.\n")
