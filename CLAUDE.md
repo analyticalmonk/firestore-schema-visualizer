@@ -47,11 +47,11 @@ No linter config or build steps.
 
 **Core logic:** `utils.py` - all pipeline functions:
 - `get_schema(db, ...)` - samples docs per collection, infers field types, recursively discovers subcollections (dot-notation paths like `users.posts`), returns `(schema, reference_fields)` tuple
-- `identify_relationships_llm(schema, known_references)` - one OpenAI call per collection with JSON mode; pre-populates known DocumentReference relationships, LLM finds remaining name-based FKs
+- `identify_relationships_llm(schema, known_references, llm_provider)` - one LLM call per collection (OpenAI with JSON mode, or Anthropic with JSON system prompt); pre-populates known DocumentReference relationships, LLM finds remaining name-based FKs
 - `create_schema_graph_llm(schema, relationships)` - pydot directed graph to timestamped PNG
 - `generate_plantuml_text(schema, relationships)` / `generate_uml_diagram(plantuml_text, output_file)` - PlantUML class diagram, optionally rendered via public PlantUML server
 
-**Config:** `config.py` - reads `OPENAI_API_KEY` from environment.
+**Config:** `config.py` - reads `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` from environment.
 
 **`scripts/` directory:** Legacy standalone scripts, not used by `main.py`. Some have hardcoded state and top-level execution code.
 
@@ -64,3 +64,5 @@ No linter config or build steps.
 ## Relationship Detection
 
 Two layers: (1) Firestore `DocumentReference` fields detected automatically during schema extraction - zero cost. (2) LLM examines field names to infer string/number fields that act as foreign keys (e.g., `user_id` -> `users`). `--skip-llm` disables layer 2 only.
+
+Alternatively, users without an API key can run `--skip-llm` to export the schema JSON, then analyze it with any AI coding assistant (Claude Code, Cursor, etc.) for relationship detection and diagram generation.

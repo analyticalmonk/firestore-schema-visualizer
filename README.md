@@ -14,11 +14,14 @@ graph LR
     E --> F
     F --> G[PlantUML Diagram]
     F --> H[pydot Graph]
+    B --> |--skip-llm| I[JSON Export]
+    I --> J[AI Coding Assistant]
 
     style A fill:#f9a825,stroke:#f57f17,color:#000
     style E fill:#90caf9,stroke:#1565c0,color:#000
     style G fill:#a5d6a7,stroke:#2e7d32,color:#000
     style H fill:#a5d6a7,stroke:#2e7d32,color:#000
+    style J fill:#ce93d8,stroke:#6a1b9a,color:#000
 ```
 
 ## Features
@@ -44,10 +47,12 @@ graph LR
     pip install -r requirements.txt
     ```
 
-4. Set up environment variables (only needed if using LLM relationship detection):
+4. Set up environment variables (only needed if using built-in LLM relationship detection):
     ```sh
-    export OPENAI_API_KEY='your-api-key'
+    export OPENAI_API_KEY='your-api-key'      # for --llm-provider openai (default)
+    export ANTHROPIC_API_KEY='your-api-key'    # for --llm-provider anthropic
     ```
+    If you use an AI coding assistant like Claude Code, you can skip this - see [Using with an AI coding assistant](#using-with-an-ai-coding-assistant).
 
 ## Usage
 
@@ -66,6 +71,9 @@ python main.py --max-depth 5 --sample-size 20
 
 # Generate diagrams for specific collections only
 python main.py --collections users,posts,comments
+
+# Use Anthropic Claude instead of OpenAI for relationship detection
+python main.py --llm-provider anthropic
 ```
 
 ### CLI Options
@@ -75,6 +83,7 @@ python main.py --collections users,posts,comments
 | `--sample-size N` | 50 | Number of documents to sample per collection |
 | `--max-depth N` | 3 | Maximum subcollection nesting depth (0 to skip subcollections) |
 | `--skip-llm` | off | Skip LLM relationship detection (only use reference-type fields) |
+| `--llm-provider` | openai | LLM provider for relationship detection: `openai` or `anthropic` |
 | `--format` | all | Output format: `all`, `plantuml`, or `pydot` |
 | `--no-export-json` | off | Skip exporting schema to a JSON file |
 | `--collections` | all | Comma-separated list of collections to scan (subcollections included automatically) |
@@ -95,13 +104,36 @@ Relationships between collections are detected in two layers:
 
 1. **Reference fields (automatic, no LLM)** - During schema extraction, Firestore `DocumentReference` fields are detected directly. These are actual pointers to other documents, so the target collection is known with certainty. This happens for free as part of schema extraction.
 
-2. **Name-based inference (LLM)** - Many relationships are stored as plain string or number fields (e.g., `user_id`, `author_email`) rather than native references. An LLM examines the full schema and field names to infer which fields likely refer to other collections. This requires an OpenAI API key and makes one API call per collection.
+2. **Name-based inference (LLM)** - Many relationships are stored as plain string or number fields (e.g., `user_id`, `author_email`) rather than native references. An LLM examines the full schema and field names to infer which fields likely refer to other collections. This requires an OpenAI or Anthropic API key and makes one API call per collection.
 
 ### What `--skip-llm` does
 
 With `--skip-llm`, only layer 1 runs. You get relationships for `DocumentReference` fields but miss name-based ones. For example, if a `posts` collection has a `user_id` string field pointing to `users`, that relationship won't be detected.
 
-Use `--skip-llm` when you want a quick overview, want to avoid API costs, or don't have an OpenAI key. The schema extraction itself (field names, types, subcollections) is unaffected.
+Use `--skip-llm` when you want a quick overview, want to avoid API costs, don't have an API key, or plan to analyze the schema yourself using an AI coding assistant (see below). The schema extraction itself (field names, types, subcollections) is unaffected.
+
+## Using with an AI coding assistant
+
+You don't need an LLM API key to get value from this tool. If you use an AI coding assistant like [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, GitHub Copilot, or similar, you can extract the schema and let your assistant handle the relationship analysis.
+
+**Step 1:** Extract the schema without LLM:
+
+```sh
+python main.py --skip-llm
+```
+
+This produces a timestamped JSON file (e.g., `firestore_schema_20260401120000.json`) containing the full schema with field names, types, and any `DocumentReference` relationships.
+
+**Step 2:** Ask your assistant to analyze it. For example, in Claude Code:
+
+```
+Look at firestore_schema_20260401120000.json. Identify foreign key
+relationships between collections - fields that store IDs referencing
+other collections (e.g., user_id -> users). Then generate a PlantUML
+class diagram showing the schema with these relationships.
+```
+
+This approach gives you full control over the analysis, works with any LLM, and costs nothing beyond what you already pay for your coding assistant.
 
 ## Tests
 
