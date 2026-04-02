@@ -4,21 +4,39 @@ Extract the schema of a Firestore database, identify relationships between colle
 
 *Note: this is an exploratory project and not meant for production usage.*
 
+```mermaid
+graph LR
+    A[(Firestore DB)] --> B[Schema Extraction]
+    B --> |"field types\nsubcollections"| C{Reference fields?}
+    C --> |yes| D[Known Relationships]
+    C --> |no| E[LLM Detection]
+    D --> F[Merge Relationships]
+    E --> F
+    F --> G[PlantUML Diagram]
+    F --> H[pydot Graph]
+
+    style A fill:#f9a825,stroke:#f57f17,color:#000
+    style E fill:#90caf9,stroke:#1565c0,color:#000
+    style G fill:#a5d6a7,stroke:#2e7d32,color:#000
+    style H fill:#a5d6a7,stroke:#2e7d32,color:#000
+```
+
 ## Features
 
-- **Extract Firestore Schema**: Retrieve the schema of a Firestore database, including collection names and their fields.
-- **Identify Relationships**: Use OpenAI's GPT-4 to identify foreign key relationships between collections.
+- **Extract Firestore Schema**: Retrieve the schema of a Firestore database, including collection names, field names, and inferred field types (string, number, boolean, timestamp, reference, etc.).
+- **Subcollection Discovery**: Recursively discover and include subcollections (e.g., `users.posts.comments`).
+- **Identify Relationships**: Detect foreign key relationships between collections using two methods (see [How relationship detection works](#how-relationship-detection-works)).
 - **Generate Schema Graph**: Create a visual representation of the Firestore schema and relationships using pydot.
-- **Generate PlantUML Text**: Generate PlantUML text for the schema and relationships, with an option to create a UML diagram.
+- **Generate PlantUML Diagram**: Generate PlantUML class diagrams with typed fields and relationship arrows.
 
 ## Installation
 
-1. Clone the repository:
+1. Clone the repository.
 
 2. Create a virtual environment and activate it:
     ```sh
     python -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    source venv/bin/activate
     ```
 
 3. Install dependencies:
@@ -26,108 +44,69 @@ Extract the schema of a Firestore database, identify relationships between colle
     pip install -r requirements.txt
     ```
 
-4. Set up environment variables:
+4. Set up environment variables (only needed if using LLM relationship detection):
     ```sh
     export OPENAI_API_KEY='your-api-key'
     ```
 
 ## Usage
 
-To run the complete workflow of extracting the schema, identifying relationships, generating a schema graph, and optionally creating a PlantUML diagram, use the `main.py` script:
+```sh
+# Full run with defaults
+python main.py
 
-## Functions
+# Quick run - fewer samples, no subcollections, skip LLM
+python main.py --sample-size 10 --max-depth 0 --skip-llm
 
-#### `get_schema`
+# Only top-level collections with PlantUML output
+python main.py --max-depth 0 --format plantuml
 
-```python
-def get_schema(db):
-    """
-    Retrieves the schema of a Firestore database.
+# Deeper subcollection discovery with smaller sample
+python main.py --max-depth 5 --sample-size 20
 
-    Args:
-        db: The Firestore database object.
-
-    Returns:
-        dict: A dictionary representing the schema of the database. The keys are the collection names,
-              and the values are lists of field names present in each collection.
-    """
+# Generate diagrams for specific collections only
+python main.py --collections users,posts,comments
 ```
 
-#### `identify_relationships_llm`
+### CLI Options
 
-```python
-def identify_relationships_llm(schema):
-    """
-    Identifies foreign key relationships within the fields of each collection in the given schema.
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--sample-size N` | 50 | Number of documents to sample per collection |
+| `--max-depth N` | 3 | Maximum subcollection nesting depth (0 to skip subcollections) |
+| `--skip-llm` | off | Skip LLM relationship detection (only use reference-type fields) |
+| `--format` | all | Output format: `all`, `plantuml`, or `pydot` |
+| `--no-export-json` | off | Skip exporting schema to a JSON file |
+| `--collections` | all | Comma-separated list of collections to scan (subcollections included automatically) |
 
-    Args:
-        schema (dict): A dictionary representing the schema of a Firestore database. Each key-value pair
-                       represents a collection name and its corresponding fields.
+By default, the schema is exported to a timestamped JSON file (e.g., `firestore_schema_20260401120000.json`) immediately after extraction, before relationship detection or diagram rendering. This ensures you have the schema saved even if later steps fail.
 
-    Returns:
-        dict: A dictionary where each key represents a collection name and the value is a list of tuples.
-              Each tuple contains the field name and the related collection name for a foreign key relationship.
-    """
+### Quick mode
+
+For a fast overview without LLM costs or subcollection crawling:
+
+```sh
+python main.py --sample-size 10 --max-depth 0 --skip-llm
 ```
 
-#### `generate_plantuml_text`
+## How relationship detection works
 
-```python
-def generate_plantuml_text(schema, relationships, generate_diagram=False, output_file=None):
-    """
-    Generates PlantUML text for Firestore collections and their relationships.
-    
-    Args:
-        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
-                       and the values are lists representing the fields of each collection.
-        relationships (dict): A dictionary representing the relationships between collections, where the keys are
-                              collection names and the values are lists of tuples representing the fields and related collections.
-        generate_diagram (bool): Whether to generate a UML diagram. Default is False.
-        output_file (str): The path to the output file for the UML diagram. Required if generate_diagram is True.
-    
-    Returns:
-        str: The PlantUML text representing the schema and relationships.
-    """
-```
+Relationships between collections are detected in two layers:
 
-#### `generate_uml_diagram`
+1. **Reference fields (automatic, no LLM)** - During schema extraction, Firestore `DocumentReference` fields are detected directly. These are actual pointers to other documents, so the target collection is known with certainty. This happens for free as part of schema extraction.
 
-```python
-def generate_uml_diagram(plantuml_text, output_file):
-    """
-    Generates a UML diagram from PlantUML text.
-    
-    Args:
-        plantuml_text (str): The PlantUML text.
-        output_file (str): The path to the output file.
-    
-    Returns:
-        None
-    """
-```
+2. **Name-based inference (LLM)** - Many relationships are stored as plain string or number fields (e.g., `user_id`, `author_email`) rather than native references. An LLM examines the full schema and field names to infer which fields likely refer to other collections. This requires an OpenAI API key and makes one API call per collection.
 
-#### `create_schema_graph_llm`
+### What `--skip-llm` does
 
-```python
-def create_schema_graph_llm(schema, relationships):
-    """
-    Creates a schema graph for Firestore collections and their relationships.
+With `--skip-llm`, only layer 1 runs. You get relationships for `DocumentReference` fields but miss name-based ones. For example, if a `posts` collection has a `user_id` string field pointing to `users`, that relationship won't be detected.
 
-    Args:
-        schema (dict): A dictionary representing the Firestore schema, where the keys are collection names
-                       and the values are dictionaries representing the fields of each collection.
-        relationships (dict): A dictionary representing the relationships between collections, where the keys are
-                              collection names and the values are lists of tuples representing the fields and related collections.
+Use `--skip-llm` when you want a quick overview, want to avoid API costs, or don't have an OpenAI key. The schema extraction itself (field names, types, subcollections) is unaffected.
 
-    Returns:
-        None
+## Tests
 
-    This function creates a directed graph using the pydot library to visualize the schema and relationships
-    between Firestore collections. Each collection is represented as a node, and each relationship is represented
-    as an edge with a label indicating the field name.
-
-    The resulting graph is saved as a PNG image named 'firestore_schema_llm_<timestamp>.png' in the current directory.
-    """
+```sh
+python -m pytest tests/ -v
 ```
 
 ## License
