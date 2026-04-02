@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Exploratory tool that extracts a Firestore database schema, uses OpenAI GPT-4o to identify foreign key relationships between collections, and generates visual diagrams (pydot PNG graphs and PlantUML class diagrams). Not intended for production use.
+Exploratory tool that extracts a Firestore database schema, uses an LLM (OpenAI GPT-4o or Anthropic Claude) to identify foreign key relationships between collections, and generates visual diagrams (pydot PNG graphs and PlantUML class diagrams). Not intended for production use.
 
 ## Setup and Running
 
 ```sh
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-export OPENAI_API_KEY='...'
+export OPENAI_API_KEY='...'       # for --llm-provider openai (default)
+export ANTHROPIC_API_KEY='...'    # for --llm-provider anthropic
 # Firestore uses Application Default Credentials
 python main.py
 ```
@@ -26,6 +27,7 @@ python main.py
 | `--format` | all | `all`, `plantuml`, or `pydot` |
 | `--no-export-json` | off | Skip JSON schema export |
 | `--collections` | all | Comma-separated collection filter |
+| `--llm-provider` | openai | `openai` or `anthropic` |
 
 Quick run without LLM or subcollections: `python main.py --sample-size 10 --max-depth 0 --skip-llm`
 

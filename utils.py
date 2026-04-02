@@ -2,13 +2,9 @@ import os
 import json
 import pydot
 import tempfile
-from openai import OpenAI
 from plantuml import PlantUML
 from datetime import datetime
-from config import OPENAI_API_KEY
 # from firebase_admin import credentials, firestore, initialize_app
-
-client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 def infer_field_type(value):
@@ -118,13 +114,60 @@ def get_schema(db, max_depth=3, sample_size=50, collections=None):
 
     return schema, reference_fields
 
-def identify_relationships_llm(schema, known_references=None):
+def _make_openai_caller():
+    from openai import OpenAI
+    from config import OPENAI_API_KEY
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+
+    def call(prompt):
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=512,
+            response_format={"type": "json_object"}
+        )
+        return response.choices[0].message.content.strip()
+
+    return call
+
+
+def _make_anthropic_caller():
+    import anthropic
+    from config import ANTHROPIC_API_KEY
+
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    def call(prompt):
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=512,
+            system="Respond only with a valid JSON object. No markdown fences, no explanation.",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text.strip()
+
+    return call
+
+
+def _get_llm_caller(provider):
+    factories = {
+        "openai": _make_openai_caller,
+        "anthropic": _make_anthropic_caller,
+    }
+    if provider not in factories:
+        raise ValueError(f"Unknown LLM provider: {provider!r}. Choose from {list(factories)}")
+    return factories[provider]()
+
+
+def identify_relationships_llm(schema, known_references=None, llm_provider="openai"):
     """
     Identify foreign key relationships using LLM, supplemented by known reference fields.
 
     Args:
         schema: dict[str, dict[str, str]] - collection path -> {field: type}
         known_references: dict[str, list[tuple[str, str]]] - pre-identified reference relationships
+        llm_provider: "openai" or "anthropic" (default "openai")
 
     Returns:
         dict[str, list[tuple[str, str]]] - collection -> [(field, related_collection)]
@@ -132,6 +175,7 @@ def identify_relationships_llm(schema, known_references=None):
     if known_references is None:
         known_references = {}
 
+    call_llm = _get_llm_caller(llm_provider)
     relationships = {}
     schema_context = json.dumps(schema, indent=2)
     collection_names = list(schema.keys())
@@ -167,13 +211,7 @@ def identify_relationships_llm(schema, known_references=None):
             f"Respond with a JSON object mapping field names to their related collection, "
             f'e.g. {{"user_id": "users"}}. If no relationships found, respond with {{}}.'
         )
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=512,
-            response_format={"type": "json_object"}
-        )
-        result_text = response.choices[0].message.content.strip()
+        result_text = call_llm(prompt)
         print(f"  LLM result: {result_text}")
 
         llm_relationships = json.loads(result_text)
